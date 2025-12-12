@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class SYM_Travel_Email_Status_Page {
 
-	private const MENU_SLUG = 'sym-travel-email-status';
+	public const MENU_SLUG = 'sym-travel-email-status';
 	private SYM_Travel_Log_Repository $log_repository;
 
 	/**
@@ -53,6 +53,17 @@ class SYM_Travel_Email_Status_Page {
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Retrieved Email Status', 'sym-travel' ); ?></h1>
+			<?php settings_errors( 'sym_travel' ); ?>
+			<section>
+				<h2><?php esc_html_e( 'Manual Fetch & Import', 'sym-travel' ); ?></h2>
+				<p><?php esc_html_e( 'Connect to IMAP, parse airline emails, and store trips. Use this when new emails have arrived.', 'sym-travel' ); ?></p>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php wp_nonce_field( SYM_Travel_Settings_Page::ACTION_FETCH ); ?>
+					<input type="hidden" name="action" value="<?php echo esc_attr( SYM_Travel_Settings_Page::ACTION_FETCH ); ?>" />
+					<?php submit_button( __( 'Fetch & Import Emails', 'sym-travel' ), 'primary', 'submit', false ); ?>
+				</form>
+			</section>
+			<hr />
 			<p><?php esc_html_e( 'Recent IMAP/OpenAI/import events help you track the status of processed emails.', 'sym-travel' ); ?></p>
 			<table class="widefat fixed striped">
 				<thead>

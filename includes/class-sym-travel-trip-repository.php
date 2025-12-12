@@ -159,4 +159,29 @@ class SYM_Travel_Trip_Repository {
 
 		return (int) $post_id;
 	}
+
+	/**
+	 * Retrieve latest trip entry.
+	 *
+	 * @return array|null
+	 */
+	public function get_latest_trip(): ?array {
+		$table = $this->wpdb->prefix . 'sym_travel_trips';
+		$query = "SELECT * FROM {$table} ORDER BY last_imported DESC LIMIT 1";
+
+		$row = $this->wpdb->get_row( $query ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+		if ( ! $row ) {
+			return null;
+		}
+
+		$trip_data = json_decode( $row->trip_data ?? '', true );
+
+		return array(
+			'pnr'           => $row->pnr,
+			'status'        => $row->status,
+			'trip_data'     => is_array( $trip_data ) ? $trip_data : array(),
+			'post_id'       => (int) $row->post_id,
+			'last_imported' => $row->last_imported,
+		);
+	}
 }

@@ -149,22 +149,16 @@ class SYM_Travel_Manual_Fetch {
 			);
 		}
 
-		wp_safe_redirect(
-			add_query_arg(
-				array( 'page' => SYM_Travel_Settings_Page::MENU_SLUG ),
-				admin_url( 'admin.php' )
-			)
-		);
-		exit;
+		$this->redirect_back();
 	}
 
 	/**
-	 * Helper to redirect back to settings page.
+	 * Helper to redirect back to email status page.
 	 */
 	private function redirect_back(): void {
 		wp_safe_redirect(
 			add_query_arg(
-				array( 'page' => SYM_Travel_Settings_Page::MENU_SLUG ),
+				array( 'page' => SYM_Travel_Email_Status_Page::MENU_SLUG ),
 				admin_url( 'admin.php' )
 			)
 		);

@@ -197,10 +197,6 @@ class SYM_Travel_Settings_Page {
 			<h2><?php esc_html_e( 'OpenAI Diagnostics', 'sym-travel' ); ?></h2>
 			<p><?php esc_html_e( 'Confirm the OpenAI API key has been saved before using it for parsing.', 'sym-travel' ); ?></p>
 			<?php $this->render_test_form( self::ACTION_TEST_OPENAI, __( 'Test OpenAI Key', 'sym-travel' ) ); ?>
-			<hr />
-			<h2><?php esc_html_e( 'Manual Fetch & Import', 'sym-travel' ); ?></h2>
-			<p><?php esc_html_e( 'When ready, click fetch to connect to IMAP and process new airline emails.', 'sym-travel' ); ?></p>
-			<?php $this->render_fetch_form(); ?>
 		</div>
 		<?php
 	}
@@ -354,19 +350,6 @@ class SYM_Travel_Settings_Page {
 			<?php wp_nonce_field( $action ); ?>
 			<input type="hidden" name="action" value="<?php echo esc_attr( $action ); ?>" />
 			<?php submit_button( $label, 'secondary', 'submit', false ); ?>
-		</form>
-		<?php
-	}
-
-	/**
-	 * Render the manual fetch form.
-	 */
-	private function render_fetch_form(): void {
-		?>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<?php wp_nonce_field( self::ACTION_FETCH ); ?>
-			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_FETCH ); ?>" />
-			<?php submit_button( __( 'Fetch & Import Emails', 'sym-travel' ), 'primary', 'submit', false ); ?>
 		</form>
 		<?php
 	}
