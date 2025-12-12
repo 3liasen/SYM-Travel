@@ -26,6 +26,8 @@ require_once __DIR__ . '/class-sym-travel-trip-manager-page.php';
  */
 class SYM_Travel_Core {
 
+	private const META_SCHEMA_VERSION = 2;
+
 	/**
 	 * Settings page handler.
 	 *
@@ -132,6 +134,7 @@ class SYM_Travel_Core {
 		add_action( 'init', array( $this, 'register_post_type' ) );
 		add_action( 'admin_menu', array( $this, 'register_admin_menu' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_init', array( $this, 'maybe_upgrade_meta_schema' ) );
 		add_action( 'admin_post_sym_travel_test_imap', array( $this->settings_page, 'handle_test_imap' ) );
 		add_action( 'admin_post_sym_travel_test_openai', array( $this->settings_page, 'handle_test_openai' ) );
 		add_action( 'admin_post_' . SYM_Travel_Settings_Page::ACTION_FETCH, array( $this->manual_fetch, 'handle_request' ) );
@@ -188,6 +191,19 @@ class SYM_Travel_Core {
 	 */
 	public function register_settings(): void {
 		$this->settings_page->register_settings();
+	}
+
+	/**
+	 * Ensure meta schema is synchronized.
+	 */
+	public function maybe_upgrade_meta_schema(): void {
+		$current = (int) get_option( 'sym_travel_meta_schema_version', 0 );
+		if ( $current >= self::META_SCHEMA_VERSION ) {
+			return;
+		}
+
+		$this->trip_repository->sync_all_trip_meta();
+		update_option( 'sym_travel_meta_schema_version', self::META_SCHEMA_VERSION );
 	}
 
 	/**

@@ -219,6 +219,32 @@ class SYM_Travel_Trip_Repository {
 	}
 
 	/**
+	 * Synchronize extracted meta for all trips.
+	 */
+	public function sync_all_trip_meta(): void {
+		$table = $this->wpdb->prefix . 'sym_travel_trips';
+		$rows  = $this->wpdb->get_results( "SELECT post_id, trip_data FROM {$table}" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+		if ( empty( $rows ) ) {
+			return;
+		}
+
+		foreach ( $rows as $row ) {
+			$post_id = (int) $row->post_id;
+			if ( $post_id <= 0 ) {
+				continue;
+			}
+
+			$trip_data = json_decode( $row->trip_data ?? '', true );
+			if ( ! is_array( $trip_data ) ) {
+				continue;
+			}
+
+			$this->meta_mirror->mirror_extracted_fields( $post_id, $trip_data );
+		}
+	}
+
+	/**
 	 * Persist manual fields for a trip post.
 	 *
 	 * @param int   $post_id       Trip post ID.

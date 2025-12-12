@@ -9,6 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/class-sym-travel-meta-mirror.php';
+
 /**
  * Provides list/detail views for trips with manual field editing.
  */
