@@ -156,15 +156,17 @@ class SYM_Travel_Core {
 		);
 
 		$args = array(
-			'labels'             => $labels,
-			'public'             => false,
-			'show_ui'            => true,
-			'show_in_menu'       => false,
-			'supports'           => array( 'title', 'editor', 'custom-fields' ),
-			'capability_type'    => 'post',
-			'has_archive'        => false,
-			'show_in_rest'       => false,
-			'rewrite'            => false,
+			'labels'              => $labels,
+			'public'              => true,
+			'publicly_queryable'  => true,
+			'exclude_from_search' => true,
+			'show_ui'             => true,
+			'show_in_menu'        => false,
+			'supports'            => array( 'title', 'editor', 'custom-fields' ),
+			'capability_type'     => 'post',
+			'has_archive'         => false,
+			'show_in_rest'        => true,
+			'rewrite'             => array( 'slug' => 'trips', 'with_front' => false ),
 		);
 
 		register_post_type( 'trips', $args );
