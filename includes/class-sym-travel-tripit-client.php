@@ -27,9 +27,10 @@ class SYM_Travel_TripIt_Client {
 				'timeout'     => 30,
 				'redirection' => 5,
 				'headers'     => array(
-					'User-Agent'      => 'SYM-Travel/1.0 (+https://symclients.dk)',
+					'User-Agent'      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 					'Accept-Language' => 'en-US,en;q=0.8',
 					'Referer'         => 'https://www.google.com/',
+					'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 				),
 				'cookies'     => array(
 					new WP_Http_Cookie(
@@ -43,6 +44,13 @@ class SYM_Travel_TripIt_Client {
 						array(
 							'name'   => 'notice_gdpr_prefs',
 							'value'  => '0:',
+							'domain' => '.tripit.com',
+						)
+					),
+					new WP_Http_Cookie(
+						array(
+							'name'   => 'notice_behavior',
+							'value'  => 'expressed',
 							'domain' => '.tripit.com',
 						)
 					),
@@ -115,6 +123,20 @@ class SYM_Travel_TripIt_Client {
 			}
 		}
 
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			$this->log_debug_payload( $body );
+		}
+
 		throw new RuntimeException( 'Unable to locate TripIt JSON payload.' );
+	}
+
+	/**
+	 * Log trimmed body for debugging purposes.
+	 *
+	 * @param string $body HTML body.
+	 */
+	private function log_debug_payload( string $body ): void {
+		$excerpt = substr( $body, 0, 2000 );
+		error_log( '[SYM Travel] TripIt raw excerpt: ' . $excerpt ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 }
