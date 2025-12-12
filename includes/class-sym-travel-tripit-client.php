@@ -21,6 +21,7 @@ class SYM_Travel_TripIt_Client {
 	 * @return array Parsed payload.
 	 */
 	public function fetch_trip( string $url ): array {
+		$this->write_debug_log( 'Fetching TripIt URL: ' . $url );
 		$cookie_jar = $this->perform_consent_request();
 
 		$response = wp_remote_get(
@@ -39,15 +40,17 @@ class SYM_Travel_TripIt_Client {
 		);
 
 		if ( is_wp_error( $response ) ) {
+			$this->write_debug_log( 'TripIt request error: ' . $response->get_error_message() );
 			throw new RuntimeException( $response->get_error_message() );
 		}
 
 		$body = wp_remote_retrieve_body( $response );
 		if ( empty( $body ) ) {
+			$this->write_debug_log( 'TripIt response body empty.' );
 			throw new RuntimeException( 'TripIt response was empty.' );
 		}
 
-		$this->log_debug_payload( $body, wp_remote_retrieve_response_code( $response ) );
+		$this->write_debug_payload( $body, wp_remote_retrieve_response_code( $response ) );
 
 		$json = $this->extract_json_payload( $body );
 
@@ -98,6 +101,7 @@ class SYM_Travel_TripIt_Client {
 			}
 		}
 
+		$this->write_debug_log( 'Unable to locate TripIt JSON payload.' );
 		throw new RuntimeException( 'Unable to locate TripIt JSON payload.' );
 	}
 
@@ -107,11 +111,21 @@ class SYM_Travel_TripIt_Client {
 	 * @param string $body HTML body.
 	 * @param int    $status HTTP status.
 	 */
-	private function log_debug_payload( string $body, int $status = 0 ): void {
+	private function write_debug_payload( string $body, int $status = 0 ): void {
 		$excerpt = substr( $body, 0, 2000 );
-		$message = sprintf( '[SYM Travel] TripIt response (%d): %s', $status, $excerpt ) . PHP_EOL;
+		$this->write_debug_log( sprintf( 'TripIt response (%d): %s', $status, $excerpt ) );
+	}
+
+	/**
+	 * Write debug log line.
+	 *
+	 * @param string $message Message.
+	 */
+	private function write_debug_log( string $message ): void {
+		$line     = sprintf( '[SYM Travel] %s', $message ) . PHP_EOL;
 		$log_file = trailingslashit( WP_CONTENT_DIR ) . 'debug.log';
-		error_log( $message, 3, $log_file ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( $line ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( $line, 3, $log_file ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 
 	/**
@@ -148,7 +162,10 @@ class SYM_Travel_TripIt_Client {
 			$raw_cookies = wp_remote_retrieve_cookies( $consent_response );
 			if ( is_array( $raw_cookies ) ) {
 				$cookies = array_merge( $cookies, $raw_cookies );
+				$this->write_debug_log( 'Received consent cookies from TrustArc.' );
 			}
+		} else {
+			$this->write_debug_log( 'Consent request error: ' . $consent_response->get_error_message() );
 		}
 
 		$cookies[] = new WP_Http_Cookie(
