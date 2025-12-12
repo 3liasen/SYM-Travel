@@ -53,15 +53,85 @@ class SYM_Travel_Manual_Fetch {
 
 		try {
 			$this->imap_client->test_connection( $settings );
-			// Placeholder: Future implementation will iterate through messages and persist trips.
-			$this->log_repository->log(
-				'imap',
-				'Manual fetch executed (connection successful).',
-				array( 'severity' => 'info' )
+			$messages = $this->imap_client->fetch_messages( $settings, 10 );
+
+			if ( empty( $messages ) ) {
+				$this->persist_notice(
+					__( 'No new airline emails found.', 'sym-travel' ),
+					'updated'
+				);
+				$this->log_repository->log(
+					'imap',
+					'Manual fetch completed. No new messages.',
+					array( 'severity' => 'info' )
+				);
+				$this->redirect_back();
+			}
+
+			$processed_uids = array();
+			$summary        = array(
+				'success' => 0,
+				'failed'  => 0,
 			);
+
+			foreach ( $messages as $message ) {
+				$parsed = null;
+				try {
+					$parsed = $this->openai_client->parse_email(
+						$message['body'],
+						array(
+							'message_id' => $message['message_id'],
+							'date'       => $message['date'],
+							'from'       => $message['from'],
+						)
+					);
+
+					$this->trip_repository->upsert_trip(
+						array(
+							'pnr'              => $parsed['pnr'],
+							'status'           => 'parsed',
+							'trip_data'        => $parsed,
+							'extracted_fields' => $parsed,
+							'manual_fields'    => array(),
+						)
+					);
+
+					$this->log_repository->log(
+						'import',
+						sprintf( 'Imported trip %s from %s', $parsed['pnr'], $message['message_id'] ?: 'unknown message' ),
+						array(
+							'severity'   => 'info',
+							'pnr'        => $parsed['pnr'],
+							'message_id' => $message['message_id'],
+						)
+					);
+
+					$processed_uids[] = $message['uid'];
+					$summary['success']++;
+				} catch ( Exception $parse_exception ) {
+					$this->log_repository->log(
+						'import',
+						'Failed to import email: ' . $parse_exception->getMessage(),
+						array(
+							'severity'   => 'error',
+							'pnr'        => is_array( $parsed ) ? ( $parsed['pnr'] ?? '' ) : '',
+							'message_id' => $message['message_id'],
+						)
+					);
+					$summary['failed']++;
+				}
+			}
+
+			$this->imap_client->mark_messages_seen( $settings, $processed_uids );
+
 			$this->persist_notice(
-				__( 'IMAP connection succeeded. Message processing not yet implemented.', 'sym-travel' ),
-				'updated'
+				sprintf(
+					/* translators: 1: success count, 2: failure count */
+					__( 'Manual fetch completed. %1$d imported, %2$d failed.', 'sym-travel' ),
+					$summary['success'],
+					$summary['failed']
+				),
+				$summary['failed'] ? 'error' : 'updated'
 			);
 		} catch ( Exception $e ) {
 			$this->log_repository->log(
@@ -79,6 +149,19 @@ class SYM_Travel_Manual_Fetch {
 			);
 		}
 
+		wp_safe_redirect(
+			add_query_arg(
+				array( 'page' => SYM_Travel_Settings_Page::MENU_SLUG ),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Helper to redirect back to settings page.
+	 */
+	private function redirect_back(): void {
 		wp_safe_redirect(
 			add_query_arg(
 				array( 'page' => SYM_Travel_Settings_Page::MENU_SLUG ),
