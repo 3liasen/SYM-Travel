@@ -18,6 +18,7 @@ require_once __DIR__ . '/class-sym-travel-imap-client.php';
 require_once __DIR__ . '/class-sym-travel-manual-fetch.php';
 require_once __DIR__ . '/class-sym-travel-email-status-page.php';
 require_once __DIR__ . '/class-sym-travel-latest-json-page.php';
+require_once __DIR__ . '/class-sym-travel-inbox-page.php';
 
 /**
  * Primary plugin orchestrator.
@@ -88,6 +89,13 @@ class SYM_Travel_Core {
 	private SYM_Travel_Latest_JSON_Page $latest_json_page;
 
 	/**
+	 * Inbox preview admin page.
+	 *
+	 * @var SYM_Travel_Inbox_Page
+	 */
+	private SYM_Travel_Inbox_Page $inbox_page;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -105,6 +113,7 @@ class SYM_Travel_Core {
 		);
 		$this->email_status_page = new SYM_Travel_Email_Status_Page( $this->log_repository );
 		$this->latest_json_page  = new SYM_Travel_Latest_JSON_Page( $this->trip_repository );
+		$this->inbox_page        = new SYM_Travel_Inbox_Page( $this->imap_client );
 	}
 
 	/**
@@ -157,6 +166,7 @@ class SYM_Travel_Core {
 		$this->settings_page->register_menu();
 		$this->email_status_page->register_menu();
 		$this->latest_json_page->register_menu();
+		$this->inbox_page->register_menu();
 	}
 
 	/**

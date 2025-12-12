@@ -126,6 +126,31 @@ class SYM_Travel_IMAP_Client {
 	}
 
 	/**
+	 * Provide metadata previews of unseen messages without altering flags.
+	 *
+	 * @param array $settings Plugin settings.
+	 * @param int   $limit    Max number of previews.
+	 * @return array<int,array>
+	 */
+	public function preview_unseen_messages( array $settings, int $limit = 10 ): array {
+		$messages = $this->fetch_messages( $settings, $limit );
+
+		$previews = array();
+		foreach ( $messages as $message ) {
+			$previews[] = array(
+				'message_id' => $message['message_id'],
+				'subject'    => $message['subject'],
+				'from'       => $message['from'],
+				'date'       => $message['date'],
+				'uid'        => $message['uid'],
+				'snippet'    => $this->build_snippet( $message['body'] ),
+			);
+		}
+
+		return $previews;
+	}
+
+	/**
 	 * Mark provided message UIDs as seen.
 	 *
 	 * @param array $settings Plugin settings.
@@ -169,5 +194,17 @@ class SYM_Travel_IMAP_Client {
 		}
 
 		return sprintf( '{%s:%d%s}%s', $host, $port, $flags, $mailbox );
+	}
+
+	/**
+	 * Generate a short snippet from the raw body.
+	 *
+	 * @param string $body Message body.
+	 * @return string
+	 */
+	private function build_snippet( string $body ): string {
+		$text = wp_strip_all_tags( $body );
+		$text = preg_replace( '/\s+/', ' ', $text );
+		return mb_substr( trim( $text ), 0, 140 );
 	}
 }
