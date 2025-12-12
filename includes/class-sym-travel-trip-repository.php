@@ -326,6 +326,15 @@ class SYM_Travel_Trip_Repository {
 
 		$segment_one = $segments[0] ?? array();
 
+		$segment_from_to = '';
+		if ( ! empty( $segment_one ) ) {
+			$departure_code = $this->extract_airport_code( $segment_one['departure'] ?? '' );
+			$arrival_code   = $this->extract_airport_code( $segment_one['arrival'] ?? '' );
+			if ( $departure_code && $arrival_code ) {
+				$segment_from_to = $departure_code . '-' . $arrival_code;
+			}
+		}
+
 		$meta_map = array(
 			'tjah_trips_pnr'                      => $trip_data['pnr'] ?? '',
 			'tjah_trips_airline'                  => $trip_data['airline'] ?? '',
@@ -339,6 +348,7 @@ class SYM_Travel_Trip_Repository {
 			'tjah_trips_segment_1_class'             => $segment_one['class'] ?? '',
 			'tjah_trips_segment_1_passenger_1_seat'  => $manual_fields['passenger_1_seat'] ?? '',
 			'tjah_trips_segment_1_passenger_2_seat'  => $manual_fields['passenger_2_seat'] ?? '',
+			'tjah_trips_segment_1_from_to'           => $segment_from_to,
 		);
 
 		foreach ( $meta_map as $meta_key => $value ) {
@@ -371,5 +381,23 @@ class SYM_Travel_Trip_Repository {
 		);
 
 		return ! empty( $posts ) ? (int) $posts[0] : 0;
+	}
+
+	/**
+	 * Extract three-letter airport code from a string.
+	 *
+	 * @param string $value Raw airport string.
+	 * @return string
+	 */
+	private function extract_airport_code( string $value ): string {
+		if ( preg_match( '/([A-Z]{3})\)/', $value, $matches ) ) {
+			return $matches[1];
+		}
+
+		if ( preg_match( '/([A-Z]{3})$/', $value, $matches ) ) {
+			return $matches[1];
+		}
+
+		return '';
 	}
 }
