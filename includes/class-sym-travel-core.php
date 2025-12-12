@@ -10,6 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/class-sym-travel-settings.php';
+require_once __DIR__ . '/class-sym-travel-trip-repository.php';
+require_once __DIR__ . '/class-sym-travel-log-repository.php';
 
 /**
  * Primary plugin orchestrator.
@@ -24,10 +26,26 @@ class SYM_Travel_Core {
 	private SYM_Travel_Settings_Page $settings_page;
 
 	/**
+	 * Trip repository instance.
+	 *
+	 * @var SYM_Travel_Trip_Repository
+	 */
+	private SYM_Travel_Trip_Repository $trip_repository;
+
+	/**
+	 * Log repository instance.
+	 *
+	 * @var SYM_Travel_Log_Repository
+	 */
+	private SYM_Travel_Log_Repository $log_repository;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->settings_page = new SYM_Travel_Settings_Page();
+		$this->settings_page  = new SYM_Travel_Settings_Page();
+		$this->trip_repository = new SYM_Travel_Trip_Repository();
+		$this->log_repository  = new SYM_Travel_Log_Repository();
 	}
 
 	/**
@@ -84,5 +102,23 @@ class SYM_Travel_Core {
 	 */
 	public function register_settings(): void {
 		$this->settings_page->register_settings();
+	}
+
+	/**
+	 * Access the trip repository.
+	 *
+	 * @return SYM_Travel_Trip_Repository
+	 */
+	public function get_trip_repository(): SYM_Travel_Trip_Repository {
+		return $this->trip_repository;
+	}
+
+	/**
+	 * Access the log repository.
+	 *
+	 * @return SYM_Travel_Log_Repository
+	 */
+	public function get_log_repository(): SYM_Travel_Log_Repository {
+		return $this->log_repository;
 	}
 }

@@ -1,0 +1,162 @@
+<?php
+/**
+ * Trip persistence layer.
+ *
+ * @package SYM_Travel
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+require_once __DIR__ . '/class-sym-travel-meta-mirror.php';
+
+/**
+ * Handles canonical table writes and CPT/meta mirroring.
+ */
+class SYM_Travel_Trip_Repository {
+
+	/**
+	 * WordPress database instance.
+	 *
+	 * @var wpdb
+	 */
+	private wpdb $wpdb;
+
+	/**
+	 * Meta mirror helper.
+	 *
+	 * @var SYM_Travel_Meta_Mirror
+	 */
+	private SYM_Travel_Meta_Mirror $meta_mirror;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param wpdb|null                    $db          WPDB dependency (optional).
+	 * @param SYM_Travel_Meta_Mirror|null  $meta_mirror Meta mirror helper (optional).
+	 */
+	public function __construct( ?wpdb $db = null, ?SYM_Travel_Meta_Mirror $meta_mirror = null ) {
+		global $wpdb;
+		$this->wpdb        = $db ?? $wpdb;
+		$this->meta_mirror = $meta_mirror ?? new SYM_Travel_Meta_Mirror();
+	}
+
+	/**
+	 * Upsert a trip by PNR, mirroring extracted/meta data.
+	 *
+	 * @param array $payload Associative structure with keys:
+	 *                       - pnr (string, required)
+	 *                       - status (string)
+	 *                       - trip_data (array)
+	 *                       - extracted_fields (array for mirroring)
+	 *                       - manual_fields (array preserved across imports)
+	 * @return int Trip post ID.
+	 */
+	public function upsert_trip( array $payload ): int {
+		$pnr = isset( $payload['pnr'] ) ? sanitize_text_field( $payload['pnr'] ) : '';
+		if ( '' === $pnr ) {
+			throw new InvalidArgumentException( 'PNR is required for upsert.' );
+		}
+
+		$status     = isset( $payload['status'] ) ? sanitize_key( $payload['status'] ) : 'parsed';
+		$trip_data  = wp_json_encode( $payload['trip_data'] ?? array() );
+		$extracted  = is_array( $payload['extracted_fields'] ?? null ) ? $payload['extracted_fields'] : array();
+		$manual     = is_array( $payload['manual_fields'] ?? null ) ? $payload['manual_fields'] : array();
+		$row        = $this->get_trip_row( $pnr );
+		$post_id    = $this->ensure_post( $pnr, $row ? (int) $row->post_id : 0 );
+		$table      = $this->wpdb->prefix . 'sym_travel_trips';
+		$timestamp  = current_time( 'mysql' );
+
+		$data = array(
+			'pnr'           => $pnr,
+			'status'        => $status,
+			'trip_data'     => $trip_data,
+			'post_id'       => $post_id,
+			'last_imported' => $timestamp,
+			'updated_at'    => $timestamp,
+		);
+
+		if ( $row ) {
+			$updated = $this->wpdb->update(
+				$table,
+				$data,
+				array( 'pnr' => $pnr ),
+				array( '%s', '%s', '%s', '%d', '%s', '%s' ),
+				array( '%s' )
+			);
+
+			if ( false === $updated ) {
+				throw new RuntimeException( 'Failed to update trip row.' );
+			}
+		} else {
+			$data['created_at'] = $timestamp;
+			$inserted           = $this->wpdb->insert(
+				$table,
+				$data,
+				array( '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
+			);
+
+			if ( false === $inserted ) {
+				throw new RuntimeException( 'Failed to insert trip row.' );
+			}
+		}
+
+		wp_update_post(
+			array(
+				'ID'         => $post_id,
+				'post_title' => $pnr,
+			)
+		);
+
+		$this->meta_mirror->mirror_extracted_fields( $post_id, $extracted );
+		$this->meta_mirror->store_manual_fields( $post_id, $manual );
+
+		return $post_id;
+	}
+
+	/**
+	 * Retrieve a trip row by PNR.
+	 *
+	 * @param string $pnr Booking reference.
+	 * @return stdClass|null
+	 */
+	public function get_trip_row( string $pnr ): ?stdClass {
+		$table = $this->wpdb->prefix . 'sym_travel_trips';
+		$query = $this->wpdb->prepare(
+			"SELECT * FROM {$table} WHERE pnr = %s",
+			$pnr
+		);
+
+		$row = $this->wpdb->get_row( $query ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+		return $row ?: null;
+	}
+
+	/**
+	 * Ensure a CPT post exists for the provided PNR.
+	 *
+	 * @param string $pnr     Booking reference.
+	 * @param int    $post_id Existing post ID (if any).
+	 * @return int
+	 */
+	private function ensure_post( string $pnr, int $post_id ): int {
+		$post = $post_id > 0 ? get_post( $post_id ) : null;
+
+		if ( ! $post || 'trips' !== $post->post_type ) {
+			$post_id = wp_insert_post(
+				array(
+					'post_type'   => 'trips',
+					'post_title'  => $pnr,
+					'post_status' => 'private',
+				),
+				true
+			);
+
+			if ( is_wp_error( $post_id ) ) {
+				throw new RuntimeException( 'Failed to create trip post.' );
+			}
+		}
+
+		return (int) $post_id;
+	}
+}
