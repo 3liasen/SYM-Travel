@@ -14,6 +14,8 @@ require_once __DIR__ . '/class-sym-travel-trip-repository.php';
 require_once __DIR__ . '/class-sym-travel-log-repository.php';
 require_once __DIR__ . '/class-sym-travel-openai-client.php';
 require_once __DIR__ . '/class-sym-travel-schema-validator.php';
+require_once __DIR__ . '/class-sym-travel-imap-client.php';
+require_once __DIR__ . '/class-sym-travel-manual-fetch.php';
 
 /**
  * Primary plugin orchestrator.
@@ -56,6 +58,20 @@ class SYM_Travel_Core {
 	private SYM_Travel_Schema_Validator $schema_validator;
 
 	/**
+	 * IMAP adapter.
+	 *
+	 * @var SYM_Travel_IMAP_Client
+	 */
+	private SYM_Travel_IMAP_Client $imap_client;
+
+	/**
+	 * Manual fetch handler.
+	 *
+	 * @var SYM_Travel_Manual_Fetch
+	 */
+	private SYM_Travel_Manual_Fetch $manual_fetch;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -64,6 +80,13 @@ class SYM_Travel_Core {
 		$this->log_repository   = new SYM_Travel_Log_Repository();
 		$this->schema_validator = new SYM_Travel_Schema_Validator();
 		$this->openai_client    = new SYM_Travel_OpenAI_Client( $this->schema_validator, $this->log_repository );
+		$this->imap_client      = new SYM_Travel_IMAP_Client( $this->log_repository );
+		$this->manual_fetch     = new SYM_Travel_Manual_Fetch(
+			$this->imap_client,
+			$this->openai_client,
+			$this->trip_repository,
+			$this->log_repository
+		);
 	}
 
 	/**
@@ -75,6 +98,7 @@ class SYM_Travel_Core {
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_post_sym_travel_test_imap', array( $this->settings_page, 'handle_test_imap' ) );
 		add_action( 'admin_post_sym_travel_test_openai', array( $this->settings_page, 'handle_test_openai' ) );
+		add_action( 'admin_post_' . SYM_Travel_Settings_Page::ACTION_FETCH, array( $this->manual_fetch, 'handle_request' ) );
 	}
 
 	/**
@@ -156,5 +180,14 @@ class SYM_Travel_Core {
 	 */
 	public function get_schema_validator(): SYM_Travel_Schema_Validator {
 		return $this->schema_validator;
+	}
+
+	/**
+	 * Access manual fetch handler.
+	 *
+	 * @return SYM_Travel_Manual_Fetch
+	 */
+	public function get_manual_fetch(): SYM_Travel_Manual_Fetch {
+		return $this->manual_fetch;
 	}
 }
