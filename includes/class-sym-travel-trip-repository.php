@@ -299,6 +299,7 @@ class SYM_Travel_Trip_Repository {
 		}
 
 		$existing_post_id = $this->find_jetengine_post_by_pnr( $pnr );
+		$manual_fields    = $this->get_manual_fields( (int) $row->post_id );
 
 		$post_args = array(
 			'post_type'   => 'tjah-trips',
@@ -317,9 +318,27 @@ class SYM_Travel_Trip_Repository {
 			throw new RuntimeException( $post_id->get_error_message() );
 		}
 
+		$passengers = $trip_data['passengers'] ?? array();
+		$segments   = array();
+		if ( ! empty( $trip_data['journeys'][0]['segments'] ) && is_array( $trip_data['journeys'][0]['segments'] ) ) {
+			$segments = $trip_data['journeys'][0]['segments'];
+		}
+
+		$segment_one = $segments[0] ?? array();
+
 		$meta_map = array(
-			'tjah_trips_pnr'     => $trip_data['pnr'] ?? '',
-			'tjah_trips_airline' => $trip_data['airline'] ?? '',
+			'tjah_trips_pnr'                      => $trip_data['pnr'] ?? '',
+			'tjah_trips_airline'                  => $trip_data['airline'] ?? '',
+			'tjah_trips_passenger_1'              => $passengers[0]['name'] ?? '',
+			'tjah_trips_passenger_2'              => $passengers[1]['name'] ?? '',
+			'tjah_trips_segment_1_departure_airport' => $segment_one['departure'] ?? '',
+			'tjah_trips_segment_1_arrival_airport'   => $segment_one['arrival'] ?? '',
+			'tjah_trips_segment_1_departure_time'    => $segment_one['departure_time'] ?? '',
+			'tjah_trips_segment_1_arrival_time'      => $segment_one['arrival_time'] ?? '',
+			'tjah_trips_segment_1_flight_number'     => $segment_one['flight_number'] ?? '',
+			'tjah_trips_segment_1_class'             => $segment_one['class'] ?? '',
+			'tjah_trips_segment_1_passenger_1_seat'  => $manual_fields['passenger_1_seat'] ?? '',
+			'tjah_trips_segment_1_passenger_2_seat'  => $manual_fields['passenger_2_seat'] ?? '',
 		);
 
 		foreach ( $meta_map as $meta_key => $value ) {
