@@ -93,20 +93,47 @@ class SYM_Travel_Trip_Manager_Page {
 
 		$pnr     = sanitize_text_field( wp_unslash( $_POST['pnr'] ?? '' ) );
 		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
-		$json    = isset( $_POST['trip_data'] ) ? wp_unslash( $_POST['trip_data'] ) : '';
+		$field_types  = isset( $_POST['trip_field_type'] ) ? (array) $_POST['trip_field_type'] : array();
+		$field_values = isset( $_POST['trip_field_value'] ) ? (array) $_POST['trip_field_value'] : array();
 
 		if ( empty( $pnr ) || 0 === $post_id ) {
 			wp_die( esc_html__( 'Invalid trip reference.', 'sym-travel' ) );
 		}
 
-		$data = json_decode( $json, true );
-		if ( null === $data || ! is_array( $data ) ) {
-			$this->queue_error( __( 'Trip data must be valid JSON.', 'sym-travel' ) );
-			$this->redirect_to_trip( $pnr );
+		$assembled_data = array();
+		foreach ( $field_types as $raw_key => $type ) {
+			$key = sanitize_text_field( wp_unslash( (string) $raw_key ) );
+			if ( '' === $key ) {
+				continue;
+			}
+
+			$raw_value = isset( $field_values[ $raw_key ] ) ? wp_unslash( $field_values[ $raw_key ] ) : '';
+
+			if ( 'json' === $type ) {
+				if ( '' === trim( (string) $raw_value ) ) {
+					$assembled_data[ $key ] = array();
+					continue;
+				}
+
+				$decoded = json_decode( (string) $raw_value, true );
+				if ( null === $decoded || ! is_array( $decoded ) ) {
+					$this->queue_error(
+						sprintf(
+							/* translators: %s: field key */
+							__( 'Field %s must contain valid JSON.', 'sym-travel' ),
+							$key
+						)
+					);
+					$this->redirect_to_trip( $pnr );
+				}
+				$assembled_data[ $key ] = $decoded;
+			} else {
+				$assembled_data[ $key ] = sanitize_text_field( (string) $raw_value );
+			}
 		}
 
 		try {
-			$validated = $this->schema_validator->validate( $data );
+			$validated = $this->schema_validator->validate( $assembled_data );
 			$this->trip_repository->update_trip_data( $pnr, $validated );
 			$this->queue_success( __( 'Trip data updated.', 'sym-travel' ) );
 		} catch ( Exception $e ) {
@@ -195,6 +222,7 @@ class SYM_Travel_Trip_Manager_Page {
 
 		$trip_data     = json_decode( $row->trip_data ?? '', true );
 		$manual_fields = $this->trip_repository->get_manual_fields( (int) $row->post_id );
+		$trip_fields   = $this->format_trip_fields( is_array( $trip_data ) ? $trip_data : array() );
 
 		?>
 		<p>
@@ -215,7 +243,33 @@ class SYM_Travel_Trip_Manager_Page {
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_EXTRACTED ); ?>" />
 			<input type="hidden" name="pnr" value="<?php echo esc_attr( $pnr ); ?>" />
 			<input type="hidden" name="post_id" value="<?php echo esc_attr( $row->post_id ); ?>" />
-			<textarea name="trip_data" rows="15" style="width:100%;font-family:monospace;"><?php echo esc_textarea( wp_json_encode( $trip_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) ); ?></textarea>
+			<table class="widefat striped">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Meta Key', 'sym-travel' ); ?></th>
+						<th><?php esc_html_e( 'Value', 'sym-travel' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $trip_fields as $field ) : ?>
+						<tr>
+							<td style="width:30%;">
+								<strong><?php echo esc_html( $field['meta_key'] ); ?></strong><br />
+								<code><?php echo esc_html( $field['key'] ); ?></code>
+								<input type="hidden" name="trip_field_type[<?php echo esc_attr( $field['key'] ); ?>]" value="<?php echo esc_attr( $field['type'] ); ?>" />
+							</td>
+							<td>
+								<?php if ( 'json' === $field['type'] ) : ?>
+									<textarea name="trip_field_value[<?php echo esc_attr( $field['key'] ); ?>]" rows="6" class="widefat code"><?php echo esc_textarea( $field['value'] ); ?></textarea>
+									<p class="description"><?php esc_html_e( 'Provide valid JSON representing this structured field.', 'sym-travel' ); ?></p>
+								<?php else : ?>
+									<input type="text" class="regular-text" name="trip_field_value[<?php echo esc_attr( $field['key'] ); ?>]" value="<?php echo esc_attr( $field['value'] ); ?>" />
+								<?php endif; ?>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
 			<?php submit_button( __( 'Save Trip Data', 'sym-travel' ) ); ?>
 		</form>
 
@@ -256,6 +310,28 @@ class SYM_Travel_Trip_Manager_Page {
 			<?php submit_button( __( 'Save Manual Fields', 'sym-travel' ) ); ?>
 		</form>
 		<?php
+	}
+
+	/**
+	 * Prepare trip fields for editing.
+	 *
+	 * @param array $trip_data Parsed trip data.
+	 * @return array<int,array>
+	 */
+	private function format_trip_fields( array $trip_data ): array {
+		$fields = array();
+
+		foreach ( $trip_data as $key => $value ) {
+			$type = is_array( $value ) ? 'json' : 'text';
+			$fields[] = array(
+				'key'      => $key,
+				'meta_key' => '_sym_travel_field_' . sanitize_key( $key ),
+				'type'     => $type,
+				'value'    => 'json' === $type ? wp_json_encode( $value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) : (string) $value,
+			);
+		}
+
+		return $fields;
 	}
 
 	/**
