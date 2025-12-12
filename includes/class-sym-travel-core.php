@@ -16,6 +16,7 @@ require_once __DIR__ . '/class-sym-travel-openai-client.php';
 require_once __DIR__ . '/class-sym-travel-schema-validator.php';
 require_once __DIR__ . '/class-sym-travel-imap-client.php';
 require_once __DIR__ . '/class-sym-travel-manual-fetch.php';
+require_once __DIR__ . '/class-sym-travel-email-status-page.php';
 
 /**
  * Primary plugin orchestrator.
@@ -72,6 +73,13 @@ class SYM_Travel_Core {
 	private SYM_Travel_Manual_Fetch $manual_fetch;
 
 	/**
+	 * Email status admin page.
+	 *
+	 * @var SYM_Travel_Email_Status_Page
+	 */
+	private SYM_Travel_Email_Status_Page $email_status_page;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -87,6 +95,7 @@ class SYM_Travel_Core {
 			$this->trip_repository,
 			$this->log_repository
 		);
+		$this->email_status_page = new SYM_Travel_Email_Status_Page( $this->log_repository );
 	}
 
 	/**
@@ -137,6 +146,7 @@ class SYM_Travel_Core {
 	 */
 	public function register_admin_menu(): void {
 		$this->settings_page->register_menu();
+		$this->email_status_page->register_menu();
 	}
 
 	/**
