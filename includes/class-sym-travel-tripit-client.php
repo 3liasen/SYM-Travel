@@ -47,6 +47,8 @@ class SYM_Travel_TripIt_Client {
 			throw new RuntimeException( 'TripIt response was empty.' );
 		}
 
+		$this->log_debug_payload( $body, wp_remote_retrieve_response_code( $response ) );
+
 		$json = $this->extract_json_payload( $body );
 
 		return $json;
@@ -96,10 +98,6 @@ class SYM_Travel_TripIt_Client {
 			}
 		}
 
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			$this->log_debug_payload( $body );
-		}
-
 		throw new RuntimeException( 'Unable to locate TripIt JSON payload.' );
 	}
 
@@ -107,10 +105,11 @@ class SYM_Travel_TripIt_Client {
 	 * Log trimmed body for debugging purposes.
 	 *
 	 * @param string $body HTML body.
+	 * @param int    $status HTTP status.
 	 */
-	private function log_debug_payload( string $body ): void {
+	private function log_debug_payload( string $body, int $status = 0 ): void {
 		$excerpt = substr( $body, 0, 2000 );
-		error_log( '[SYM Travel] TripIt raw excerpt: ' . $excerpt ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( sprintf( '[SYM Travel] TripIt response (%d): %s', $status, $excerpt ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 
 	/**
