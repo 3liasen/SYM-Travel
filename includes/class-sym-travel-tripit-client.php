@@ -112,7 +112,7 @@ class SYM_Travel_TripIt_Client {
 		$excerpt = substr( $body, 0, 2000 );
 		error_log( '[SYM Travel] TripIt raw excerpt: ' . $excerpt ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
-}
+
 	/**
 	 * Perform TrustArc consent request and return cookies.
 	 *
@@ -160,3 +160,4 @@ class SYM_Travel_TripIt_Client {
 
 		return $cookies;
 	}
+}
