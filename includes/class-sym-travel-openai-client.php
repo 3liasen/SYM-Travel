@@ -82,8 +82,27 @@ class SYM_Travel_OpenAI_Client {
 			throw new RuntimeException( 'Unexpected OpenAI response shape.' );
 		}
 
-		$json_payload = $this->decode_json( $data['choices'][0]['message']['content'] );
-		$validated    = $this->validator->validate( $json_payload );
+		$content      = $data['choices'][0]['message']['content'];
+		$json_payload = $this->decode_json( $content, $context );
+
+		try {
+			$validated = $this->validator->validate( $json_payload );
+		} catch ( Exception $validation_exception ) {
+			$this->logger->log(
+				'openai',
+				sprintf(
+					'Validation failed: %s | Payload: %s',
+					$validation_exception->getMessage(),
+					$this->truncate_payload( $content )
+				),
+				array(
+					'severity'   => 'error',
+					'message_id' => $context['message_id'] ?? null,
+				)
+			);
+
+			throw $validation_exception;
+		}
 
 		return $validated;
 	}
@@ -122,28 +141,40 @@ class SYM_Travel_OpenAI_Client {
 	 * @return string
 	 */
 	private function build_prompt( string $email_body ): string {
-		$schema = array(
-			'pnr'       => 'string - booking code',
-			'airline'   => 'string - airline name',
-			'passengers'=> array( 'name' => 'string' ),
+		$sample = array(
+			'pnr'       => 'ABC123',
+			'airline'   => 'KLM',
+			'passengers'=> array(
+				array( 'name' => 'Jane Doe' ),
+			),
 			'journeys'  => array(
-				'segments' => array(
-					'departure'      => 'airport code or city',
-					'arrival'        => 'airport code or city',
-					'departure_time' => 'ISO8601 datetime',
-					'arrival_time'   => 'ISO8601 datetime',
-					'flight_number'  => 'string (e.g., SY123)',
-					'aircraft'       => 'string or null',
-					'class'          => 'string or null',
+				array(
+					'segments' => array(
+						array(
+							'departure'      => 'Billund Airport (BLL)',
+							'arrival'        => 'Amsterdam Schiphol (AMS)',
+							'departure_time' => '2025-12-27T06:00:00',
+							'arrival_time'   => '2025-12-27T07:15:00',
+							'flight_number'  => 'KL1290',
+							'aircraft'       => 'Boeing 737',
+							'class'          => 'Economy',
+						),
+					),
 				),
 			),
 		);
 
-		$schema_text = wp_json_encode( $schema, JSON_PRETTY_PRINT );
+		$sample_json = wp_json_encode( $sample, JSON_PRETTY_PRINT );
 
 		return sprintf(
-			"Extract the itinerary from the following airline email.\nReturn JSON matching this schema:\n%s\nEmail:\n%s",
-			$schema_text,
+			"Extract the itinerary from the following airline email.\n"
+			. "Rules:\n"
+			. "- Always return valid JSON only.\n"
+			. "- `passengers` must be a non-empty array. Each passenger must include a `name` exactly as written in the email (e.g., the 'Passenger name' line). No empty objects.\n"
+			. "- All datetime values must be ISO8601 (e.g., 2025-12-27T06:00:00).\n"
+			. "- Include baggage or status details only if explicitly provided.\n"
+			. "Use this JSON as your structural guide (values are illustrative):\n%s\nEmail:\n%s",
+			$sample_json,
 			$email_body
 		);
 	}
@@ -154,12 +185,31 @@ class SYM_Travel_OpenAI_Client {
 	 * @param string $content Response content.
 	 * @return array
 	 */
-	private function decode_json( string $content ): array {
+	private function decode_json( string $content, array $context ): array {
 		$json = json_decode( $content, true );
 		if ( null === $json || ! is_array( $json ) ) {
+			$this->logger->log(
+				'openai',
+				'OpenAI returned invalid JSON.',
+				array(
+					'severity'   => 'error',
+					'message_id' => $context['message_id'] ?? null,
+				)
+			);
 			throw new RuntimeException( 'OpenAI response was not valid JSON.' );
 		}
 
 		return $json;
+	}
+
+	/**
+	 * Truncate logged payloads to avoid oversized entries.
+	 *
+	 * @param string $payload Original payload.
+	 * @return string
+	 */
+	private function truncate_payload( string $payload ): string {
+		$payload = str_replace( array( "\r", "\n" ), ' ', $payload );
+		return mb_substr( $payload, 0, 500 );
 	}
 }
