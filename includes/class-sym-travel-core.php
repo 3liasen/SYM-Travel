@@ -19,6 +19,7 @@ require_once __DIR__ . '/class-sym-travel-manual-fetch.php';
 require_once __DIR__ . '/class-sym-travel-email-status-page.php';
 require_once __DIR__ . '/class-sym-travel-latest-json-page.php';
 require_once __DIR__ . '/class-sym-travel-inbox-page.php';
+require_once __DIR__ . '/class-sym-travel-trip-manager-page.php';
 
 /**
  * Primary plugin orchestrator.
@@ -96,6 +97,13 @@ class SYM_Travel_Core {
 	private SYM_Travel_Inbox_Page $inbox_page;
 
 	/**
+	 * Trip manager admin page.
+	 *
+	 * @var SYM_Travel_Trip_Manager_Page
+	 */
+	private SYM_Travel_Trip_Manager_Page $trip_manager_page;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -114,6 +122,7 @@ class SYM_Travel_Core {
 		$this->email_status_page = new SYM_Travel_Email_Status_Page( $this->log_repository );
 		$this->latest_json_page  = new SYM_Travel_Latest_JSON_Page( $this->trip_repository );
 		$this->inbox_page        = new SYM_Travel_Inbox_Page( $this->imap_client );
+		$this->trip_manager_page = new SYM_Travel_Trip_Manager_Page( $this->trip_repository );
 	}
 
 	/**
@@ -126,6 +135,7 @@ class SYM_Travel_Core {
 		add_action( 'admin_post_sym_travel_test_imap', array( $this->settings_page, 'handle_test_imap' ) );
 		add_action( 'admin_post_sym_travel_test_openai', array( $this->settings_page, 'handle_test_openai' ) );
 		add_action( 'admin_post_' . SYM_Travel_Settings_Page::ACTION_FETCH, array( $this->manual_fetch, 'handle_request' ) );
+		add_action( 'admin_post_' . SYM_Travel_Trip_Manager_Page::ACTION_SAVE_MANUAL, array( $this->trip_manager_page, 'handle_manual_fields_save' ) );
 	}
 
 	/**
@@ -167,6 +177,7 @@ class SYM_Travel_Core {
 		$this->email_status_page->register_menu();
 		$this->latest_json_page->register_menu();
 		$this->inbox_page->register_menu();
+		$this->trip_manager_page->register_menu();
 	}
 
 	/**

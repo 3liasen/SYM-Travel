@@ -184,4 +184,41 @@ class SYM_Travel_Trip_Repository {
 			'last_imported' => $row->last_imported,
 		);
 	}
+
+	/**
+	 * Persist manual fields for a trip post.
+	 *
+	 * @param int   $post_id       Trip post ID.
+	 * @param array $manual_fields Key/value pairs.
+	 */
+	public function save_manual_fields( int $post_id, array $manual_fields ): void {
+		$this->meta_mirror->replace_manual_fields( $post_id, $manual_fields );
+	}
+
+	/**
+	 * Retrieve manual fields for a post.
+	 *
+	 * @param int $post_id Trip post ID.
+	 * @return array
+	 */
+	public function get_manual_fields( int $post_id ): array {
+		return $this->meta_mirror->get_manual_fields( $post_id );
+	}
+
+	/**
+	 * Get a list of recent trips.
+	 *
+	 * @param int $limit Number of trips to return.
+	 * @return array<int,stdClass>
+	 */
+	public function get_recent_trips( int $limit = 20 ): array {
+		$table = $this->wpdb->prefix . 'sym_travel_trips';
+		$query = $this->wpdb->prepare(
+			"SELECT pnr, status, last_imported, post_id FROM {$table} ORDER BY last_imported DESC LIMIT %d",
+			$limit
+		);
+
+		$rows = $this->wpdb->get_results( $query ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return is_array( $rows ) ? $rows : array();
+	}
 }

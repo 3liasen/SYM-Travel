@@ -53,6 +53,25 @@ class SYM_Travel_Meta_Mirror {
 	}
 
 	/**
+	 * Replace manual fields with a new sanitized map.
+	 *
+	 * @param int   $post_id       Trip post ID.
+	 * @param array $manual_fields Manual field map.
+	 */
+	public function replace_manual_fields( int $post_id, array $manual_fields ): void {
+		$sanitized_map = array();
+		foreach ( $manual_fields as $key => $value ) {
+			$sanitized_key = sanitize_key( $key );
+			if ( '' === $sanitized_key ) {
+				continue;
+			}
+			$sanitized_map[ $sanitized_key ] = sanitize_text_field( (string) $value );
+		}
+
+		update_post_meta( $post_id, self::MANUAL_META_KEY, $sanitized_map );
+	}
+
+	/**
 	 * Retrieve previously stored manual fields.
 	 *
 	 * @param int $post_id Trip post ID.
