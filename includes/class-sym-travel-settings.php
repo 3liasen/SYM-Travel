@@ -373,18 +373,14 @@ class SYM_Travel_Settings_Page {
 	 * @param string $type    Type: updated|error.
 	 */
 	private function persist_notice( string $message, string $type ): void {
-		set_transient(
-			'settings_errors',
-			array(
-				array(
-					'setting' => 'sym_travel',
-					'code'    => 'sym_travel_notice',
-					'message' => $message,
-					'type'    => $type,
-				),
-			),
-			30
+		add_settings_error(
+			'sym_travel',
+			'sym_travel_notice',
+			$message,
+			$type
 		);
+
+		set_transient( 'settings_errors', get_settings_errors(), 30 );
 	}
 
 	/**
