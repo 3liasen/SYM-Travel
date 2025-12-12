@@ -12,6 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/class-sym-travel-settings.php';
 require_once __DIR__ . '/class-sym-travel-trip-repository.php';
 require_once __DIR__ . '/class-sym-travel-log-repository.php';
+require_once __DIR__ . '/class-sym-travel-openai-client.php';
+require_once __DIR__ . '/class-sym-travel-schema-validator.php';
 
 /**
  * Primary plugin orchestrator.
@@ -40,12 +42,28 @@ class SYM_Travel_Core {
 	private SYM_Travel_Log_Repository $log_repository;
 
 	/**
+	 * OpenAI adapter.
+	 *
+	 * @var SYM_Travel_OpenAI_Client
+	 */
+	private SYM_Travel_OpenAI_Client $openai_client;
+
+	/**
+	 * Schema validator.
+	 *
+	 * @var SYM_Travel_Schema_Validator
+	 */
+	private SYM_Travel_Schema_Validator $schema_validator;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->settings_page  = new SYM_Travel_Settings_Page();
-		$this->trip_repository = new SYM_Travel_Trip_Repository();
-		$this->log_repository  = new SYM_Travel_Log_Repository();
+		$this->settings_page    = new SYM_Travel_Settings_Page();
+		$this->trip_repository  = new SYM_Travel_Trip_Repository();
+		$this->log_repository   = new SYM_Travel_Log_Repository();
+		$this->schema_validator = new SYM_Travel_Schema_Validator();
+		$this->openai_client    = new SYM_Travel_OpenAI_Client( $this->schema_validator, $this->log_repository );
 	}
 
 	/**
@@ -120,5 +138,23 @@ class SYM_Travel_Core {
 	 */
 	public function get_log_repository(): SYM_Travel_Log_Repository {
 		return $this->log_repository;
+	}
+
+	/**
+	 * Access the OpenAI client.
+	 *
+	 * @return SYM_Travel_OpenAI_Client
+	 */
+	public function get_openai_client(): SYM_Travel_OpenAI_Client {
+		return $this->openai_client;
+	}
+
+	/**
+	 * Access the schema validator.
+	 *
+	 * @return SYM_Travel_Schema_Validator
+	 */
+	public function get_schema_validator(): SYM_Travel_Schema_Validator {
+		return $this->schema_validator;
 	}
 }
