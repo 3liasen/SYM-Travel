@@ -14,18 +14,21 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class SYM_Travel_Trip_Manager_Page {
 
-	public const MENU_SLUG          = 'sym-travel-trips';
-	public const ACTION_SAVE_MANUAL = 'sym_travel_save_manual_fields';
+	public const MENU_SLUG           = 'sym-travel-trips';
+	public const ACTION_SAVE_MANUAL  = 'sym_travel_save_manual_fields';
+	public const ACTION_SAVE_EXTRACTED = 'sym_travel_save_extracted_trip';
 
 	private SYM_Travel_Trip_Repository $trip_repository;
+	private SYM_Travel_Schema_Validator $schema_validator;
 
 	/**
 	 * Constructor.
 	 *
 	 * @param SYM_Travel_Trip_Repository $trip_repository Trip repository.
 	 */
-	public function __construct( SYM_Travel_Trip_Repository $trip_repository ) {
-		$this->trip_repository = $trip_repository;
+	public function __construct( SYM_Travel_Trip_Repository $trip_repository, SYM_Travel_Schema_Validator $schema_validator ) {
+		$this->trip_repository   = $trip_repository;
+		$this->schema_validator  = $schema_validator;
 	}
 
 	/**
@@ -74,24 +77,43 @@ class SYM_Travel_Trip_Manager_Page {
 
 		$this->trip_repository->save_manual_fields( $post_id, $manual_fields );
 
-		add_settings_error(
-			'sym_travel',
-			'sym_travel_manual_fields',
-			__( 'Manual fields updated.', 'sym-travel' ),
-			'updated'
-		);
-		set_transient( 'settings_errors', get_settings_errors(), 30 );
+		$this->queue_success( __( 'Manual fields updated.', 'sym-travel' ) );
+		$this->redirect_to_trip( $pnr );
+	}
 
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'page' => self::MENU_SLUG,
-					'pnr'  => $pnr,
-				),
-				admin_url( 'admin.php' )
-			)
-		);
-		exit;
+	/**
+	 * Handle parsed data edits.
+	 */
+	public function handle_trip_data_save(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'sym-travel' ) );
+		}
+
+		check_admin_referer( self::ACTION_SAVE_EXTRACTED );
+
+		$pnr     = sanitize_text_field( wp_unslash( $_POST['pnr'] ?? '' ) );
+		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+		$json    = isset( $_POST['trip_data'] ) ? wp_unslash( $_POST['trip_data'] ) : '';
+
+		if ( empty( $pnr ) || 0 === $post_id ) {
+			wp_die( esc_html__( 'Invalid trip reference.', 'sym-travel' ) );
+		}
+
+		$data = json_decode( $json, true );
+		if ( null === $data || ! is_array( $data ) ) {
+			$this->queue_error( __( 'Trip data must be valid JSON.', 'sym-travel' ) );
+			$this->redirect_to_trip( $pnr );
+		}
+
+		try {
+			$validated = $this->schema_validator->validate( $data );
+			$this->trip_repository->update_trip_data( $pnr, $validated );
+			$this->queue_success( __( 'Trip data updated.', 'sym-travel' ) );
+		} catch ( Exception $e ) {
+			$this->queue_error( sprintf( __( 'Unable to save trip: %s', 'sym-travel' ), $e->getMessage() ) );
+		}
+
+		$this->redirect_to_trip( $pnr );
 	}
 
 	/**
@@ -188,7 +210,14 @@ class SYM_Travel_Trip_Manager_Page {
 		</p>
 
 		<h3><?php esc_html_e( 'Extracted Trip Data', 'sym-travel' ); ?></h3>
-		<textarea readonly rows="15" style="width:100%;font-family:monospace;"><?php echo esc_textarea( wp_json_encode( $trip_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) ); ?></textarea>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( self::ACTION_SAVE_EXTRACTED ); ?>
+			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_EXTRACTED ); ?>" />
+			<input type="hidden" name="pnr" value="<?php echo esc_attr( $pnr ); ?>" />
+			<input type="hidden" name="post_id" value="<?php echo esc_attr( $row->post_id ); ?>" />
+			<textarea name="trip_data" rows="15" style="width:100%;font-family:monospace;"><?php echo esc_textarea( wp_json_encode( $trip_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) ); ?></textarea>
+			<?php submit_button( __( 'Save Trip Data', 'sym-travel' ) ); ?>
+		</form>
 
 		<h3><?php esc_html_e( 'Manual Fields', 'sym-travel' ); ?></h3>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -227,5 +256,43 @@ class SYM_Travel_Trip_Manager_Page {
 			<?php submit_button( __( 'Save Manual Fields', 'sym-travel' ) ); ?>
 		</form>
 		<?php
+	}
+
+	/**
+	 * Queue success notice.
+	 *
+	 * @param string $message Message.
+	 */
+	private function queue_success( string $message ): void {
+		add_settings_error( 'sym_travel', 'sym_travel_trip_manager', $message, 'updated' );
+		set_transient( 'settings_errors', get_settings_errors(), 30 );
+	}
+
+	/**
+	 * Queue error notice.
+	 *
+	 * @param string $message Message.
+	 */
+	private function queue_error( string $message ): void {
+		add_settings_error( 'sym_travel', 'sym_travel_trip_manager', $message, 'error' );
+		set_transient( 'settings_errors', get_settings_errors(), 30 );
+	}
+
+	/**
+	 * Redirect to trip detail view.
+	 *
+	 * @param string $pnr PNR.
+	 */
+	private function redirect_to_trip( string $pnr ): void {
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page' => self::MENU_SLUG,
+					'pnr'  => $pnr,
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
 	}
 }

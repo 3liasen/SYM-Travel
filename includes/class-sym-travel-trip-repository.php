@@ -186,6 +186,39 @@ class SYM_Travel_Trip_Repository {
 	}
 
 	/**
+	 * Update stored trip data and mirrored meta.
+	 *
+	 * @param string $pnr       Booking reference.
+	 * @param array  $trip_data Parsed payload.
+	 */
+	public function update_trip_data( string $pnr, array $trip_data ): void {
+		$row = $this->get_trip_row( $pnr );
+		if ( ! $row ) {
+			throw new RuntimeException( 'Trip not found.' );
+		}
+
+		$table     = $this->wpdb->prefix . 'sym_travel_trips';
+		$timestamp = current_time( 'mysql' );
+
+		$updated = $this->wpdb->update(
+			$table,
+			array(
+				'trip_data'  => wp_json_encode( $trip_data ),
+				'updated_at' => $timestamp,
+			),
+			array( 'pnr' => $pnr ),
+			array( '%s', '%s' ),
+			array( '%s' )
+		);
+
+		if ( false === $updated ) {
+			throw new RuntimeException( 'Failed to update trip data.' );
+		}
+
+		$this->meta_mirror->mirror_extracted_fields( (int) $row->post_id, $trip_data );
+	}
+
+	/**
 	 * Persist manual fields for a trip post.
 	 *
 	 * @param int   $post_id       Trip post ID.

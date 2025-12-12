@@ -122,7 +122,7 @@ class SYM_Travel_Core {
 		$this->email_status_page = new SYM_Travel_Email_Status_Page( $this->log_repository );
 		$this->latest_json_page  = new SYM_Travel_Latest_JSON_Page( $this->trip_repository );
 		$this->inbox_page        = new SYM_Travel_Inbox_Page( $this->imap_client );
-		$this->trip_manager_page = new SYM_Travel_Trip_Manager_Page( $this->trip_repository );
+		$this->trip_manager_page = new SYM_Travel_Trip_Manager_Page( $this->trip_repository, $this->schema_validator );
 	}
 
 	/**
@@ -136,6 +136,7 @@ class SYM_Travel_Core {
 		add_action( 'admin_post_sym_travel_test_openai', array( $this->settings_page, 'handle_test_openai' ) );
 		add_action( 'admin_post_' . SYM_Travel_Settings_Page::ACTION_FETCH, array( $this->manual_fetch, 'handle_request' ) );
 		add_action( 'admin_post_' . SYM_Travel_Trip_Manager_Page::ACTION_SAVE_MANUAL, array( $this->trip_manager_page, 'handle_manual_fields_save' ) );
+		add_action( 'admin_post_' . SYM_Travel_Trip_Manager_Page::ACTION_SAVE_EXTRACTED, array( $this->trip_manager_page, 'handle_trip_data_save' ) );
 	}
 
 	/**
