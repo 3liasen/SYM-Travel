@@ -21,13 +21,85 @@ class SYM_Travel_TripIt_Client {
 	 * @return array Parsed payload.
 	 */
 	public function fetch_trip( string $url ): array {
-		$this->write_debug_log( 'Fetching TripIt URL: ' . $url );
+		$this->write_debug_log( 'Fetching TripIt URL (headless): ' . $url );
+		$payload = $this->fetch_via_headless( $url );
+
+		if ( ! empty( $payload ) ) {
+			return $payload;
+		}
+
+		$this->write_debug_log( 'Headless fetch yielded no data, falling back to HTTP request.' );
+		return $this->fetch_via_http( $url );
+	}
+
+	/**
+	 * Fetch TripIt data using Puppeteer headless browser.
+	 *
+	 * @param string $url TripIt URL.
+	 * @return array
+	 */
+	private function fetch_via_headless( string $url ): array {
+		$script_path = SYM_TRAVEL_PATH . 'scripts/tripit-fetch.mjs';
+		if ( ! file_exists( $script_path ) ) {
+			$this->write_debug_log( 'TripIt headless script missing: ' . $script_path );
+			return array();
+		}
+
+		$command = sprintf(
+			'node %s %s',
+			escapeshellarg( $script_path ),
+			escapeshellarg( $url )
+		);
+
+		$this->write_debug_log( 'Executing headless command: ' . $command );
+
+		$descriptor_spec = array(
+			1 => array( 'pipe', 'w' ),
+			2 => array( 'pipe', 'w' ),
+		);
+
+		$process = proc_open( $command, $descriptor_spec, $pipes, SYM_TRAVEL_PATH );
+
+		if ( ! is_resource( $process ) ) {
+			$this->write_debug_log( 'Failed to start headless process.' );
+			return array();
+		}
+
+		$output = stream_get_contents( $pipes[1] );
+		$error  = stream_get_contents( $pipes[2] );
+		fclose( $pipes[1] );
+		fclose( $pipes[2] );
+
+		$status = proc_close( $process );
+
+		if ( $status !== 0 ) {
+			$this->write_debug_log( 'Headless fetch failed: ' . $error );
+			return array();
+		}
+
+		$decoded = json_decode( $output, true );
+
+		if ( null === $decoded || ! is_array( $decoded ) ) {
+			$this->write_debug_log( 'Headless output was not valid JSON: ' . $output );
+			return array();
+		}
+
+		return $decoded;
+	}
+
+	/**
+	 * Fetch TripIt data via HTTP request (fallback).
+	 *
+	 * @param string $url TripIt URL.
+	 * @return array
+	 */
+	private function fetch_via_http( string $url ): array {
 		$cookie_jar = $this->perform_consent_request();
 
 		$response = wp_remote_get(
 			esc_url_raw( $url ),
 			array(
-				'timeout'     => 30,
+				'timeout'     => 45,
 				'redirection' => 5,
 				'headers'     => array(
 					'User-Agent'      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -52,9 +124,7 @@ class SYM_Travel_TripIt_Client {
 
 		$this->write_debug_payload( $body, wp_remote_retrieve_response_code( $response ) );
 
-		$json = $this->extract_json_payload( $body );
-
-		return $json;
+		return $this->extract_json_payload( $body );
 	}
 
 	/**

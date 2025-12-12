@@ -1,0 +1,11 @@
+{
+  "name": "sym-travel",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "puppeteer": "^24.15.0"
+  },
+  "scripts": {
+    "tripit:fetch": "node scripts/tripit-fetch.mjs"
+  }
+}

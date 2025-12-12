@@ -10,7 +10,19 @@ class ComposerStaticInitf016aa1b6892c930fcb90731ba03e495
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'SYM_Travel_Activator' => __DIR__ . '/../..' . '/includes/class-sym-travel-activator.php',
         'SYM_Travel_Core' => __DIR__ . '/../..' . '/includes/class-sym-travel-core.php',
+        'SYM_Travel_Email_Status_Page' => __DIR__ . '/../..' . '/includes/class-sym-travel-email-status-page.php',
+        'SYM_Travel_IMAP_Client' => __DIR__ . '/../..' . '/includes/class-sym-travel-imap-client.php',
+        'SYM_Travel_Inbox_Page' => __DIR__ . '/../..' . '/includes/class-sym-travel-inbox-page.php',
+        'SYM_Travel_Latest_JSON_Page' => __DIR__ . '/../..' . '/includes/class-sym-travel-latest-json-page.php',
+        'SYM_Travel_Log_Repository' => __DIR__ . '/../..' . '/includes/class-sym-travel-log-repository.php',
+        'SYM_Travel_Manual_Fetch' => __DIR__ . '/../..' . '/includes/class-sym-travel-manual-fetch.php',
+        'SYM_Travel_Meta_Mirror' => __DIR__ . '/../..' . '/includes/class-sym-travel-meta-mirror.php',
+        'SYM_Travel_OpenAI_Client' => __DIR__ . '/../..' . '/includes/class-sym-travel-openai-client.php',
+        'SYM_Travel_Schema_Validator' => __DIR__ . '/../..' . '/includes/class-sym-travel-schema-validator.php',
         'SYM_Travel_Settings_Page' => __DIR__ . '/../..' . '/includes/class-sym-travel-settings.php',
+        'SYM_Travel_TripIt_Client' => __DIR__ . '/../..' . '/includes/class-sym-travel-tripit-client.php',
+        'SYM_Travel_Trip_Manager_Page' => __DIR__ . '/../..' . '/includes/class-sym-travel-trip-manager-page.php',
+        'SYM_Travel_Trip_Repository' => __DIR__ . '/../..' . '/includes/class-sym-travel-trip-repository.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
