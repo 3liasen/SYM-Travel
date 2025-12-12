@@ -160,7 +160,7 @@ class SYM_Travel_Core {
 			'public'             => false,
 			'show_ui'            => true,
 			'show_in_menu'       => false,
-			'supports'           => array( 'title', 'editor' ),
+			'supports'           => array( 'title', 'editor', 'custom-fields' ),
 			'capability_type'    => 'post',
 			'has_archive'        => false,
 			'show_in_rest'       => false,
