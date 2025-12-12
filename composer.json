@@ -1,0 +1,11 @@
+{
+    "name": "sym/sym-travel",
+    "description": "WordPress plugin for airline email ingestion and trip management.",
+    "type": "wordpress-plugin",
+    "require": {},
+    "autoload": {
+        "classmap": [
+            "includes/"
+        ]
+    }
+}
