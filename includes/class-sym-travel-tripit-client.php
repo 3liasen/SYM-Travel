@@ -24,10 +24,12 @@ class SYM_Travel_TripIt_Client {
 		$response = wp_remote_get(
 			esc_url_raw( $url ),
 			array(
-				'timeout' => 30,
-				'headers' => array(
+				'timeout'     => 30,
+				'redirection' => 5,
+				'headers'     => array(
 					'User-Agent'      => 'SYM-Travel/1.0 (+https://symclients.dk)',
 					'Accept-Language' => 'en-US,en;q=0.8',
+					'Cookie'          => 'notice_preferences=2:;notice_gdpr_prefs=0:;notice_welcome=1:',
 				),
 			)
 		);

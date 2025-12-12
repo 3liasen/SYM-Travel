@@ -307,6 +307,9 @@ class SYM_Travel_Trip_Manager_Page {
 			<input type="url" class="regular-text" name="tripit_link" value="<?php echo esc_attr( $tripit_link ); ?>" placeholder="https://www.tripit.com/..." />
 			<?php submit_button( __( 'Fetch TripIt JSON', 'sym-travel' ), 'secondary', 'submit', false ); ?>
 		</form>
+		<?php if ( $tripit_link ) : ?>
+			<p><?php esc_html_e( 'Last fetched link:', 'sym-travel' ); ?> <a href="<?php echo esc_url( $tripit_link ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $tripit_link ); ?></a></p>
+		<?php endif; ?>
 
 		<h3><?php esc_html_e( 'Extracted Trip Data', 'sym-travel' ); ?></h3>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
