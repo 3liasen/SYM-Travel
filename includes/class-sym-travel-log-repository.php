@@ -59,4 +59,22 @@ class SYM_Travel_Log_Repository {
 			array( '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 	}
+
+	/**
+	 * Retrieve recent log entries for display.
+	 *
+	 * @param int $limit Number of entries to fetch.
+	 * @return array<int,stdClass>
+	 */
+	public function get_recent_entries( int $limit = 25 ): array {
+		$table = $this->wpdb->prefix . 'sym_travel_logs';
+		$query = $this->wpdb->prepare(
+			"SELECT context, pnr, severity, message, message_id, created_at FROM {$table} ORDER BY created_at DESC LIMIT %d",
+			$limit
+		);
+
+		$results = $this->wpdb->get_results( $query ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		return is_array( $results ) ? $results : array();
+	}
 }

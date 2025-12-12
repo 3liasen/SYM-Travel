@@ -48,15 +48,7 @@ class SYM_Travel_Email_Status_Page {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'sym-travel' ) );
 		}
 
-		global $wpdb;
-
-		$table    = $wpdb->prefix . 'sym_travel_logs';
-		$limit    = 25;
-		$query    = $wpdb->prepare(
-			"SELECT context, pnr, severity, message, message_id, created_at FROM {$table} ORDER BY created_at DESC LIMIT %d",
-			$limit
-		);
-		$entries  = $wpdb->get_results( $query ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared
+		$entries = $this->log_repository->get_recent_entries();
 
 		?>
 		<div class="wrap">
