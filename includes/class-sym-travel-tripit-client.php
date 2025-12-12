@@ -21,6 +21,8 @@ class SYM_Travel_TripIt_Client {
 	 * @return array Parsed payload.
 	 */
 	public function fetch_trip( string $url ): array {
+		$cookie_jar = $this->perform_consent_request();
+
 		$response = wp_remote_get(
 			esc_url_raw( $url ),
 			array(
@@ -32,36 +34,7 @@ class SYM_Travel_TripIt_Client {
 					'Referer'         => 'https://www.google.com/',
 					'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
 				),
-				'cookies'     => array(
-					new WP_Http_Cookie(
-						array(
-							'name'   => 'notice_preferences',
-							'value'  => '2:',
-							'domain' => '.tripit.com',
-						)
-					),
-					new WP_Http_Cookie(
-						array(
-							'name'   => 'notice_gdpr_prefs',
-							'value'  => '0:',
-							'domain' => '.tripit.com',
-						)
-					),
-					new WP_Http_Cookie(
-						array(
-							'name'   => 'notice_behavior',
-							'value'  => 'expressed',
-							'domain' => '.tripit.com',
-						)
-					),
-					new WP_Http_Cookie(
-						array(
-							'name'   => 'notice_welcome',
-							'value'  => 'true',
-							'domain' => '.tripit.com',
-						)
-					),
-				),
+				'cookies'     => $cookie_jar,
 			)
 		);
 
@@ -140,3 +113,50 @@ class SYM_Travel_TripIt_Client {
 		error_log( '[SYM Travel] TripIt raw excerpt: ' . $excerpt ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 }
+	/**
+	 * Perform TrustArc consent request and return cookies.
+	 *
+	 * @return array<WP_Http_Cookie>
+	 */
+	private function perform_consent_request(): array {
+		$cookies = array();
+
+		$consent_response = wp_remote_post(
+			'https://consent.trustarc.com/v2/notice/accept',
+			array(
+				'timeout' => 15,
+				'headers' => array(
+					'User-Agent'   => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+					'Content-Type' => 'application/json',
+				),
+				'body'    => wp_json_encode(
+					array(
+						'publisher'     => 'tripit.com',
+						'noticeId'      => 'aWwfbXl2',
+						'siteId'        => 'tripit.com',
+						'consentType'   => 'accept',
+						'country'       => 'DK',
+						'language'      => 'da',
+						'cookieVersion' => '1.0.0',
+					)
+				),
+			)
+		);
+
+		if ( ! is_wp_error( $consent_response ) ) {
+			$raw_cookies = wp_remote_retrieve_cookies( $consent_response );
+			if ( is_array( $raw_cookies ) ) {
+				$cookies = array_merge( $cookies, $raw_cookies );
+			}
+		}
+
+		$cookies[] = new WP_Http_Cookie(
+			array(
+				'name'   => 'notice_welcome',
+				'value'  => 'true',
+				'domain' => '.tripit.com',
+			)
+		);
+
+		return $cookies;
+	}
