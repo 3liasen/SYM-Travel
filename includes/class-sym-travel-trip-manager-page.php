@@ -17,9 +17,10 @@ require_once __DIR__ . '/class-sym-travel-meta-mirror.php';
 require_once __DIR__ . '/class-sym-travel-meta-mirror.php';
 class SYM_Travel_Trip_Manager_Page {
 
-	public const MENU_SLUG           = 'sym-travel-trips';
-	public const ACTION_SAVE_MANUAL  = 'sym_travel_save_manual_fields';
+	public const MENU_SLUG             = 'sym-travel-trips';
+	public const ACTION_SAVE_MANUAL    = 'sym_travel_save_manual_fields';
 	public const ACTION_SAVE_EXTRACTED = 'sym_travel_save_extracted_trip';
+	public const ACTION_GENERATE_JET   = 'sym_travel_generate_jet_trip';
 
 	private SYM_Travel_Trip_Repository $trip_repository;
 	private SYM_Travel_Schema_Validator $schema_validator;
@@ -128,6 +129,37 @@ class SYM_Travel_Trip_Manager_Page {
 	}
 
 	/**
+	 * Handle JetEngine trip generation.
+	 */
+	public function handle_generate_jet_trip(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'sym-travel' ) );
+		}
+
+		check_admin_referer( self::ACTION_GENERATE_JET );
+
+		$pnr = sanitize_text_field( wp_unslash( $_POST['pnr'] ?? '' ) );
+		if ( '' === $pnr ) {
+			wp_die( esc_html__( 'Invalid trip reference.', 'sym-travel' ) );
+		}
+
+		try {
+			$post_id = $this->trip_repository->sync_jetengine_trip( $pnr );
+			$this->queue_success(
+				sprintf(
+					/* translators: %d jetengine post id */
+					__( 'JetEngine trip generated (post ID %d).', 'sym-travel' ),
+					$post_id
+				)
+			);
+		} catch ( Exception $e ) {
+			$this->queue_error( $e->getMessage() );
+		}
+
+		$this->redirect_to_trip( $pnr );
+	}
+
+	/**
 	 * Render page content.
 	 */
 	public function render_page(): void {
@@ -220,6 +252,12 @@ class SYM_Travel_Trip_Manager_Page {
 			<strong><?php esc_html_e( 'Status:', 'sym-travel' ); ?></strong> <?php echo esc_html( ucfirst( $row->status ) ); ?><br />
 			<strong><?php esc_html_e( 'Last Imported:', 'sym-travel' ); ?></strong> <?php echo esc_html( $row->last_imported ); ?>
 		</p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-bottom:20px;">
+			<?php wp_nonce_field( self::ACTION_GENERATE_JET ); ?>
+			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_GENERATE_JET ); ?>" />
+			<input type="hidden" name="pnr" value="<?php echo esc_attr( $pnr ); ?>" />
+			<?php submit_button( __( 'Generate JetEngine CPT', 'sym-travel' ), 'secondary', 'submit', false ); ?>
+		</form>
 
 		<h3><?php esc_html_e( 'Extracted Trip Data', 'sym-travel' ); ?></h3>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">

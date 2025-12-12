@@ -280,4 +280,77 @@ class SYM_Travel_Trip_Repository {
 		$rows = $this->wpdb->get_results( $query ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return is_array( $rows ) ? $rows : array();
 	}
+
+	/**
+	 * Create or update the JetEngine CPT entry for a trip.
+	 *
+	 * @param string $pnr Booking reference.
+	 * @return int JetEngine post ID.
+	 */
+	public function sync_jetengine_trip( string $pnr ): int {
+		$row = $this->get_trip_row( $pnr );
+		if ( ! $row ) {
+			throw new RuntimeException( 'Trip not found.' );
+		}
+
+		$trip_data = json_decode( $row->trip_data ?? '', true );
+		if ( ! is_array( $trip_data ) ) {
+			throw new RuntimeException( 'Trip data is invalid.' );
+		}
+
+		$existing_post_id = $this->find_jetengine_post_by_pnr( $pnr );
+
+		$post_args = array(
+			'post_type'   => 'tjah-trips',
+			'post_title'  => $pnr . ' – ' . ( $trip_data['airline'] ?? __( 'Trip', 'sym-travel' ) ),
+			'post_status' => 'publish',
+		);
+
+		if ( $existing_post_id > 0 ) {
+			$post_args['ID'] = $existing_post_id;
+			$post_id         = wp_update_post( $post_args, true );
+		} else {
+			$post_id = wp_insert_post( $post_args, true );
+		}
+
+		if ( is_wp_error( $post_id ) ) {
+			throw new RuntimeException( $post_id->get_error_message() );
+		}
+
+		$meta_map = array(
+			'tjah_trips_pnr'     => $trip_data['pnr'] ?? '',
+			'tjah_trips_airline' => $trip_data['airline'] ?? '',
+		);
+
+		foreach ( $meta_map as $meta_key => $value ) {
+			update_post_meta( $post_id, $meta_key, sanitize_text_field( (string) $value ) );
+		}
+
+		return (int) $post_id;
+	}
+
+	/**
+	 * Locate an existing JetEngine trip post by PNR.
+	 *
+	 * @param string $pnr Booking reference.
+	 * @return int Post ID or 0.
+	 */
+	private function find_jetengine_post_by_pnr( string $pnr ): int {
+		$posts = get_posts(
+			array(
+				'post_type'      => 'tjah-trips',
+				'post_status'    => 'any',
+				'posts_per_page' => 1,
+				'meta_query'     => array(
+					array(
+						'key'   => 'tjah_trips_pnr',
+						'value' => $pnr,
+					),
+				),
+				'fields'         => 'ids',
+			)
+		);
+
+		return ! empty( $posts ) ? (int) $posts[0] : 0;
+	}
 }

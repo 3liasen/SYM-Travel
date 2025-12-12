@@ -140,6 +140,7 @@ class SYM_Travel_Core {
 		add_action( 'admin_post_' . SYM_Travel_Settings_Page::ACTION_FETCH, array( $this->manual_fetch, 'handle_request' ) );
 		add_action( 'admin_post_' . SYM_Travel_Trip_Manager_Page::ACTION_SAVE_MANUAL, array( $this->trip_manager_page, 'handle_manual_fields_save' ) );
 		add_action( 'admin_post_' . SYM_Travel_Trip_Manager_Page::ACTION_SAVE_EXTRACTED, array( $this->trip_manager_page, 'handle_trip_data_save' ) );
+		add_action( 'admin_post_' . SYM_Travel_Trip_Manager_Page::ACTION_GENERATE_JET, array( $this->trip_manager_page, 'handle_generate_jet_trip' ) );
 	}
 
 	/**
