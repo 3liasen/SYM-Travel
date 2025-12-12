@@ -109,7 +109,9 @@ class SYM_Travel_TripIt_Client {
 	 */
 	private function log_debug_payload( string $body, int $status = 0 ): void {
 		$excerpt = substr( $body, 0, 2000 );
-		error_log( sprintf( '[SYM Travel] TripIt response (%d): %s', $status, $excerpt ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		$message = sprintf( '[SYM Travel] TripIt response (%d): %s', $status, $excerpt ) . PHP_EOL;
+		$log_file = trailingslashit( WP_CONTENT_DIR ) . 'debug.log';
+		error_log( $message, 3, $log_file ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 
 	/**
