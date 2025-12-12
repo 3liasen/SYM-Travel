@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       SYM Travel
  * Description:       IMAP ingestion of airline emails, OpenAI parsing, and Trip persistence for private display.
- * Version:           0.0.22
+ * Version:           0.0.23
  * Author:            SYM Travel Team
  * Requires at least: 6.5
  * Requires PHP:      8.2
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SYM_TRAVEL_VERSION', '0.0.22' );
+define( 'SYM_TRAVEL_VERSION', '0.0.23' );
 define( 'SYM_TRAVEL_PATH', plugin_dir_path( __FILE__ ) );
 define( 'SYM_TRAVEL_URL', plugin_dir_url( __FILE__ ) );
 
@@ -25,6 +25,7 @@ if ( file_exists( $autoload ) ) {
 
 require_once SYM_TRAVEL_PATH . 'includes/class-sym-travel-core.php';
 require_once SYM_TRAVEL_PATH . 'includes/class-sym-travel-activator.php';
+require_once SYM_TRAVEL_PATH . 'includes/class-sym-travel-tripit-client.php';
 
 register_activation_hook(
 	__FILE__,

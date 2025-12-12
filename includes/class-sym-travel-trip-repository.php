@@ -29,6 +29,8 @@ class SYM_Travel_Trip_Repository {
 	 * @var SYM_Travel_Meta_Mirror
 	 */
 	private SYM_Travel_Meta_Mirror $meta_mirror;
+	private const TRIPIT_LINK_META = '_sym_travel_tripit_link';
+	private const TRIPIT_JSON_META = '_sym_travel_tripit_json';
 
 	/**
 	 * Constructor.
@@ -279,6 +281,40 @@ class SYM_Travel_Trip_Repository {
 
 		$rows = $this->wpdb->get_results( $query ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Store TripIt link and payload for a trip.
+	 *
+	 * @param int    $post_id Trip CPT post ID.
+	 * @param string $link    TripIt link.
+	 * @param array  $payload Parsed TripIt payload.
+	 */
+	public function store_tripit_payload( int $post_id, string $link, array $payload ): void {
+		update_post_meta( $post_id, self::TRIPIT_LINK_META, esc_url_raw( $link ) );
+		update_post_meta( $post_id, self::TRIPIT_JSON_META, wp_json_encode( $payload ) );
+	}
+
+	/**
+	 * Retrieve TripIt link.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public function get_tripit_link( int $post_id ): string {
+		return (string) get_post_meta( $post_id, self::TRIPIT_LINK_META, true );
+	}
+
+	/**
+	 * Retrieve TripIt JSON payload.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array
+	 */
+	public function get_tripit_json( int $post_id ): array {
+		$raw = get_post_meta( $post_id, self::TRIPIT_JSON_META, true );
+		$val = json_decode( (string) $raw, true );
+		return is_array( $val ) ? $val : array();
 	}
 
 	/**

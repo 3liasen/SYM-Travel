@@ -21,18 +21,21 @@ class SYM_Travel_Trip_Manager_Page {
 	public const ACTION_SAVE_MANUAL    = 'sym_travel_save_manual_fields';
 	public const ACTION_SAVE_EXTRACTED = 'sym_travel_save_extracted_trip';
 	public const ACTION_GENERATE_JET   = 'sym_travel_generate_jet_trip';
+	public const ACTION_FETCH_TRIPIT   = 'sym_travel_fetch_tripit';
 
 	private SYM_Travel_Trip_Repository $trip_repository;
 	private SYM_Travel_Schema_Validator $schema_validator;
+	private SYM_Travel_TripIt_Client $tripit_client;
 
 	/**
 	 * Constructor.
 	 *
 	 * @param SYM_Travel_Trip_Repository $trip_repository Trip repository.
 	 */
-	public function __construct( SYM_Travel_Trip_Repository $trip_repository, SYM_Travel_Schema_Validator $schema_validator ) {
+	public function __construct( SYM_Travel_Trip_Repository $trip_repository, SYM_Travel_Schema_Validator $schema_validator, SYM_Travel_TripIt_Client $tripit_client ) {
 		$this->trip_repository   = $trip_repository;
 		$this->schema_validator  = $schema_validator;
+		$this->tripit_client     = $tripit_client;
 	}
 
 	/**
@@ -160,6 +163,40 @@ class SYM_Travel_Trip_Manager_Page {
 	}
 
 	/**
+	 * Handle TripIt fetch.
+	 */
+	public function handle_fetch_tripit(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'sym-travel' ) );
+		}
+
+		check_admin_referer( self::ACTION_FETCH_TRIPIT );
+
+		$pnr     = sanitize_text_field( wp_unslash( $_POST['pnr'] ?? '' ) );
+		$post_id = isset( $_POST['post_id'] ) ? absint( $_POST['post_id'] ) : 0;
+		$link    = isset( $_POST['tripit_link'] ) ? esc_url_raw( wp_unslash( $_POST['tripit_link'] ) ) : '';
+
+		if ( empty( $pnr ) || 0 === $post_id ) {
+			wp_die( esc_html__( 'Invalid trip reference.', 'sym-travel' ) );
+		}
+
+		if ( empty( $link ) || ! filter_var( $link, FILTER_VALIDATE_URL ) ) {
+			$this->queue_error( __( 'TripIt link is required.', 'sym-travel' ) );
+			$this->redirect_to_trip( $pnr );
+		}
+
+		try {
+			$payload = $this->tripit_client->fetch_trip( $link );
+			$this->trip_repository->store_tripit_payload( $post_id, $link, $payload );
+			$this->queue_success( __( 'TripIt data fetched successfully.', 'sym-travel' ) );
+		} catch ( Exception $e ) {
+			$this->queue_error( sprintf( __( 'TripIt fetch failed: %s', 'sym-travel' ), $e->getMessage() ) );
+		}
+
+		$this->redirect_to_trip( $pnr );
+	}
+
+	/**
 	 * Render page content.
 	 */
 	public function render_page(): void {
@@ -236,9 +273,12 @@ class SYM_Travel_Trip_Manager_Page {
 			return;
 		}
 
+		$post_id       = (int) $row->post_id;
 		$trip_data     = json_decode( $row->trip_data ?? '', true );
-		$manual_fields = $this->trip_repository->get_manual_fields( (int) $row->post_id );
+		$manual_fields = $this->trip_repository->get_manual_fields( $post_id );
 		$trip_fields   = $this->format_trip_fields( is_array( $trip_data ) ? $trip_data : array() );
+		$tripit_link   = $this->trip_repository->get_tripit_link( $post_id );
+		$tripit_json   = $this->trip_repository->get_tripit_json( $post_id );
 
 		?>
 		<p>
@@ -257,6 +297,15 @@ class SYM_Travel_Trip_Manager_Page {
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_GENERATE_JET ); ?>" />
 			<input type="hidden" name="pnr" value="<?php echo esc_attr( $pnr ); ?>" />
 			<?php submit_button( __( 'Generate JetEngine CPT', 'sym-travel' ), 'secondary', 'submit', false ); ?>
+		</form>
+		<h3><?php esc_html_e( 'TripIt Link', 'sym-travel' ); ?></h3>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( self::ACTION_FETCH_TRIPIT ); ?>
+			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_FETCH_TRIPIT ); ?>" />
+			<input type="hidden" name="pnr" value="<?php echo esc_attr( $pnr ); ?>" />
+			<input type="hidden" name="post_id" value="<?php echo esc_attr( $post_id ); ?>" />
+			<input type="url" class="regular-text" name="tripit_link" value="<?php echo esc_attr( $tripit_link ); ?>" placeholder="https://www.tripit.com/..." />
+			<?php submit_button( __( 'Fetch TripIt JSON', 'sym-travel' ), 'secondary', 'submit', false ); ?>
 		</form>
 
 		<h3><?php esc_html_e( 'Extracted Trip Data', 'sym-travel' ); ?></h3>
@@ -289,6 +338,9 @@ class SYM_Travel_Trip_Manager_Page {
 			</table>
 			<?php submit_button( __( 'Save Trip Data', 'sym-travel' ) ); ?>
 		</form>
+
+		<h3><?php esc_html_e( 'TripIt JSON', 'sym-travel' ); ?></h3>
+		<textarea readonly rows="12" style="width:100%;font-family:monospace;"><?php echo esc_textarea( wp_json_encode( $tripit_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) ); ?></textarea>
 
 		<h3><?php esc_html_e( 'Manual Fields', 'sym-travel' ); ?></h3>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">

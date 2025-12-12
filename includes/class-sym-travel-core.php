@@ -104,6 +104,7 @@ class SYM_Travel_Core {
 	 * @var SYM_Travel_Trip_Manager_Page
 	 */
 	private SYM_Travel_Trip_Manager_Page $trip_manager_page;
+	private SYM_Travel_TripIt_Client $tripit_client;
 
 	/**
 	 * Constructor.
@@ -124,7 +125,8 @@ class SYM_Travel_Core {
 		$this->email_status_page = new SYM_Travel_Email_Status_Page( $this->log_repository );
 		$this->latest_json_page  = new SYM_Travel_Latest_JSON_Page( $this->trip_repository );
 		$this->inbox_page        = new SYM_Travel_Inbox_Page( $this->imap_client );
-		$this->trip_manager_page = new SYM_Travel_Trip_Manager_Page( $this->trip_repository, $this->schema_validator );
+		$this->tripit_client     = new SYM_Travel_TripIt_Client();
+		$this->trip_manager_page = new SYM_Travel_Trip_Manager_Page( $this->trip_repository, $this->schema_validator, $this->tripit_client );
 	}
 
 	/**
@@ -141,6 +143,7 @@ class SYM_Travel_Core {
 		add_action( 'admin_post_' . SYM_Travel_Trip_Manager_Page::ACTION_SAVE_MANUAL, array( $this->trip_manager_page, 'handle_manual_fields_save' ) );
 		add_action( 'admin_post_' . SYM_Travel_Trip_Manager_Page::ACTION_SAVE_EXTRACTED, array( $this->trip_manager_page, 'handle_trip_data_save' ) );
 		add_action( 'admin_post_' . SYM_Travel_Trip_Manager_Page::ACTION_GENERATE_JET, array( $this->trip_manager_page, 'handle_generate_jet_trip' ) );
+		add_action( 'admin_post_' . SYM_Travel_Trip_Manager_Page::ACTION_FETCH_TRIPIT, array( $this->trip_manager_page, 'handle_fetch_tripit' ) );
 	}
 
 	/**
