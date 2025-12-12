@@ -37,6 +37,8 @@ class SYM_Travel_Core {
 		add_action( 'init', array( $this, 'register_post_type' ) );
 		add_action( 'admin_menu', array( $this, 'register_admin_menu' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_post_sym_travel_test_imap', array( $this->settings_page, 'handle_test_imap' ) );
+		add_action( 'admin_post_sym_travel_test_openai', array( $this->settings_page, 'handle_test_openai' ) );
 	}
 
 	/**

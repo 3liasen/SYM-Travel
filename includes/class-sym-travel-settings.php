@@ -14,15 +14,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class SYM_Travel_Settings_Page {
 
-	/**
-	 * Option key used to store settings.
-	 */
-	private const OPTION_KEY = 'sym_travel_settings';
-
-	/**
-	 * Settings group slug.
-	 */
-	private const SETTINGS_GROUP = 'sym_travel_settings_group';
+	private const OPTION_KEY          = 'sym_travel_settings';
+	private const SETTINGS_GROUP      = 'sym_travel_settings_group';
+	private const MENU_SLUG           = 'sym-travel';
+	private const ACTION_TEST_IMAP    = 'sym_travel_test_imap';
+	private const ACTION_TEST_OPENAI  = 'sym_travel_test_openai';
 
 	/**
 	 * Register menu pages.
@@ -32,7 +28,7 @@ class SYM_Travel_Settings_Page {
 			__( 'SYM Travel', 'sym-travel' ),
 			__( 'SYM Travel', 'sym-travel' ),
 			'manage_options',
-			'sym-travel',
+			self::MENU_SLUG,
 			array( $this, 'render_settings_page' ),
 			'dashicons-airplane',
 			56
@@ -57,7 +53,7 @@ class SYM_Travel_Settings_Page {
 			'sym_travel_imap_section',
 			__( 'IMAP Settings', 'sym-travel' ),
 			'__return_false',
-			'sym-travel'
+			self::MENU_SLUG
 		);
 
 		$this->add_field(
@@ -112,7 +108,7 @@ class SYM_Travel_Settings_Page {
 			'sym_travel_openai_section',
 			__( 'OpenAI Settings', 'sym-travel' ),
 			'__return_false',
-			'sym-travel'
+			self::MENU_SLUG
 		);
 
 		$this->add_field(
@@ -138,7 +134,7 @@ class SYM_Travel_Settings_Page {
 			$key,
 			$label,
 			$callback,
-			'sym-travel',
+			self::MENU_SLUG,
 			$section,
 			array(
 				'key'         => $key,
@@ -185,13 +181,21 @@ class SYM_Travel_Settings_Page {
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'SYM Travel Settings', 'sym-travel' ); ?></h1>
+			<?php settings_errors( 'sym_travel' ); ?>
 			<form method="post" action="options.php">
 				<?php
 				settings_fields( self::SETTINGS_GROUP );
-				do_settings_sections( 'sym-travel' );
+				do_settings_sections( self::MENU_SLUG );
 				submit_button();
 				?>
 			</form>
+			<hr />
+			<h2><?php esc_html_e( 'IMAP Diagnostics', 'sym-travel' ); ?></h2>
+			<p><?php esc_html_e( 'Run a quick validation to ensure all IMAP fields have been provided and stored.', 'sym-travel' ); ?></p>
+			<?php $this->render_test_form( self::ACTION_TEST_IMAP, __( 'Test IMAP Settings', 'sym-travel' ) ); ?>
+			<h2><?php esc_html_e( 'OpenAI Diagnostics', 'sym-travel' ); ?></h2>
+			<p><?php esc_html_e( 'Confirm the OpenAI API key has been saved before using it for parsing.', 'sym-travel' ); ?></p>
+			<?php $this->render_test_form( self::ACTION_TEST_OPENAI, __( 'Test OpenAI Key', 'sym-travel' ) ); ?>
 		</div>
 		<?php
 	}
@@ -279,5 +283,122 @@ class SYM_Travel_Settings_Page {
 	private function get_setting_value( string $key ): string {
 		$settings = $this->get_settings();
 		return isset( $settings[ $key ] ) ? (string) $settings[ $key ] : '';
+	}
+
+	/**
+	 * Handle IMAP test action.
+	 */
+	public function handle_test_imap(): void {
+		$this->guard_test_request( self::ACTION_TEST_IMAP );
+
+		$settings = $this->get_settings();
+		$required = array(
+			'imap_host'     => __( 'IMAP Host', 'sym-travel' ),
+			'imap_port'     => __( 'IMAP Port', 'sym-travel' ),
+			'imap_username' => __( 'IMAP Username', 'sym-travel' ),
+			'imap_password' => __( 'IMAP Password', 'sym-travel' ),
+			'imap_mailbox'  => __( 'Mailbox', 'sym-travel' ),
+		);
+
+		$missing = array();
+		foreach ( $required as $key => $label ) {
+			if ( empty( $settings[ $key ] ) ) {
+				$missing[] = $label;
+			}
+		}
+
+		if ( empty( $missing ) ) {
+			$this->persist_notice( __( 'IMAP settings look good. All required fields are saved.', 'sym-travel' ), 'updated' );
+		} else {
+			$message = sprintf(
+				/* translators: %s list of missing settings */
+				__( 'IMAP settings missing: %s', 'sym-travel' ),
+				implode( ', ', array_map( 'esc_html', $missing ) )
+			);
+			$this->persist_notice( $message, 'error' );
+		}
+
+		$this->redirect_to_settings();
+	}
+
+	/**
+	 * Handle OpenAI key test action.
+	 */
+	public function handle_test_openai(): void {
+		$this->guard_test_request( self::ACTION_TEST_OPENAI );
+
+		$settings = $this->get_settings();
+		if ( empty( $settings['openai_api_key'] ) ) {
+			$this->persist_notice( __( 'OpenAI API key is missing. Please add it above.', 'sym-travel' ), 'error' );
+		} else {
+			$this->persist_notice( __( 'OpenAI API key is stored.', 'sym-travel' ), 'updated' );
+		}
+
+		$this->redirect_to_settings();
+	}
+
+	/**
+	 * Output a standalone test form.
+	 *
+	 * @param string $action Action slug.
+	 * @param string $label  Button label.
+	 */
+	private function render_test_form( string $action, string $label ): void {
+		?>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( $action ); ?>
+			<input type="hidden" name="action" value="<?php echo esc_attr( $action ); ?>" />
+			<?php submit_button( $label, 'secondary', 'submit', false ); ?>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Ensure the current user can run diagnostics.
+	 *
+	 * @param string $nonce_action Nonce action.
+	 */
+	private function guard_test_request( string $nonce_action ): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'sym-travel' ) );
+		}
+
+		check_admin_referer( $nonce_action );
+	}
+
+	/**
+	 * Persist a notice via the WordPress settings error mechanism.
+	 *
+	 * @param string $message Message content.
+	 * @param string $type    Type: updated|error.
+	 */
+	private function persist_notice( string $message, string $type ): void {
+		set_transient(
+			'settings_errors',
+			array(
+				array(
+					'setting' => 'sym_travel',
+					'code'    => 'sym_travel_notice',
+					'message' => $message,
+					'type'    => $type,
+				),
+			),
+			30
+		);
+	}
+
+	/**
+	 * Redirect back to the plugin settings.
+	 */
+	private function redirect_to_settings(): void {
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page' => self::MENU_SLUG,
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
 	}
 }
